@@ -136,3 +136,45 @@ main { padding: 20px 28px 60px; max-width: 1180px; margin: 0 auto; }
 
 .hint { color: var(--muted); font-size: 12px; }
 .empty p { color: var(--muted); margin: 0; }
+
+/* release 2pc drill */
+.navlink { color: var(--accent); margin-left: 10px; text-decoration: none; }
+.navlink:hover { text-decoration: underline; }
+
+.release-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 18px;
+  align-items: end;
+}
+.release-form label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted); }
+.release-form label.full { grid-column: 1 / -1; }
+.release-form input, .release-form select {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
+  padding: 9px 11px;
+  font-size: 14px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+.release-form input:focus, .release-form select:focus { outline: none; border-color: var(--accent); }
+@media (max-width: 860px) { .release-form { grid-template-columns: 1fr; } }
+
+.card-registry { border-left: 3px solid var(--accent); }
+.card-quota { border-left: 3px solid var(--ok); }
+
+.state-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  white-space: nowrap;
+}
+.state-none { color: var(--muted); }
+.state-prepared { border-color: var(--warn); color: var(--warn); }
+.state-committed { border-color: var(--ok); color: var(--ok); }
+.status-revoked { border-color: var(--bad); color: var(--bad); }
+.status-none { color: var(--muted); }

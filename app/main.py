@@ -16,6 +16,9 @@ from fastapi.templating import Jinja2Templates
 from .config import settings
 from .db import connect, ensure_schema
 from .drill import DrillError, store
+from .release_db import connect_quota, connect_registry
+from .release_drill import store as release_store
+from .release_web import create_router as create_release_router
 
 logging.basicConfig(
     level=os.environ.get("LOG_LEVEL", "INFO"),
@@ -36,6 +39,19 @@ async def lifespan(_app: FastAPI):
             break
         except Exception as exc:  # database may still be starting
             logger.warning("database not ready (attempt %s): %s", attempt, exc)
+            if attempt == 30:
+                raise
+            time.sleep(1)
+    # The release drill uses two independent PostgreSQL databases.
+    for attempt in range(1, 31):
+        try:
+            release_store.ensure_schema()
+            logger.info("release 2pc schemas ready (registry + quota)")
+            break
+        except Exception as exc:
+            logger.warning(
+                "release databases not ready (attempt %s): %s", attempt, exc
+            )
             if attempt == 30:
                 raise
             time.sleep(1)
@@ -64,8 +80,9 @@ async def lifespan(_app: FastAPI):
         store.shutdown()
 
 
-app = FastAPI(title="PostgreSQL 行锁演练台", lifespan=lifespan)
+app = FastAPI(title="PostgreSQL 演练台（行锁 + 两阶段提交）", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+app.include_router(create_release_router(templates, release_store))
 
 
 def _json_error(exc: DrillError) -> JSONResponse:
@@ -211,5 +228,22 @@ async def healthz() -> JSONResponse:
             conn.execute("SELECT 1").fetchone()
     except Exception as exc:
         return JSONResponse({"ok": False, "error": str(exc)}, status_code=503)
+    release_ok = True
+    release_error: str | None = None
+    try:
+        with connect_registry(autocommit=True) as conn:
+            conn.execute("SELECT 1").fetchone()
+        with connect_quota(autocommit=True) as conn:
+            conn.execute("SELECT 1").fetchone()
+    except Exception as exc:
+        release_ok = False
+        release_error = str(exc)
     active = store.active()
-    return JSONResponse({"ok": True, "active_drill_id": active.id if active else None})
+    return JSONResponse(
+        {
+            "ok": True,
+            "active_drill_id": active.id if active else None,
+            "release_2pc_ok": release_ok,
+            "release_2pc_error": release_error,
+        }
+    )
